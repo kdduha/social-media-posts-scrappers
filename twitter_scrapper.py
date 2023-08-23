@@ -2,19 +2,37 @@ from selenium import webdriver
 import selenium.common.exceptions as errors
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 import time
+
+    
+def check_connection(driver, by, expression):
+    try:
+        WebDriverWait(driver, 20).until(EC.presence_of_element_located((by, expression)))
+        print(f"{time.ctime().split()[-2]} Connection established")
+    except errors.WebDriverException:
+        print(f"{time.ctime().split()[-2]} Page info did not appear! Proceeding after timeout")
+        raise errors.WebDriverException
 
 
 def logging(driver, login_url, LOGIN, USERNAME, PASSWORD):
 
     driver.get(login_url)
-    time.sleep(2)
-
-    login = driver.find_element(By.XPATH, "//input").send_keys(LOGIN)
+    time.sleep(5)
+    
+    check_connection(driver, By.XPATH, "//input")
+    
+    try:
+        login = driver.find_element(By.XPATH, "//input").send_keys(LOGIN)
+    except errors.ElementNotInteractableException:
+        print(f"{time.ctime().split()[-2]} Sorry, someting went wrong :( Try again and check your internet)")
+        raise errors.ElementNotInteractableException
+        
     submit = driver.find_elements(By.CSS_SELECTOR, "[role='button']")[2].click()
     time.sleep(2)
-
+    
     try: 
         password = driver.find_element(By.CSS_SELECTOR, "[name='password']").send_keys(PASSWORD)
         submit = driver.find_element(By.CSS_SELECTOR, "[data-testid='LoginForm_Login_Button']").click()
@@ -28,7 +46,7 @@ def logging(driver, login_url, LOGIN, USERNAME, PASSWORD):
         password = driver.find_element(By.CSS_SELECTOR, "[name='password']").send_keys(PASSWORD)
         submit = driver.find_element(By.CSS_SELECTOR, "[data-testid='LoginForm_Login_Button']").click()
         time.sleep(2)
-        
+            
         
     print(f"{time.ctime().split()[-2]} You're succesfully signed up!")
 
@@ -37,15 +55,7 @@ def switch_window(driver, user_url):
     driver.execute_script("window.open('');")
     driver.switch_to.window(driver.window_handles[1])
     driver.get(user_url)
-    time.sleep(10)
-    
-    
-def check_profile(driver):
-    try:
-        WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.CSS_SELECTOR, '[data-testid="tweet"]')))
-        print(f"{time.ctime().split()[-2]} Connection established")
-    except WebDriverException:
-        print(f"{time.ctime().split()[-2]} Tweets did not appear! Proceeding after timeout")
+    time.sleep(5)
 
 
 def parsing_loaded_tweets(data, driver):
@@ -65,7 +75,7 @@ def parsing_loaded_tweets(data, driver):
             try:
                 parsed_post['text'] = post.find_element(By.CSS_SELECTOR, "div[data-testid='tweetText']").text
             except errors.NoSuchElementException:  
-                print(f'{time.ctime().split()[-2]} Post is skipped cause there is no text')
+                #print(f'{time.ctime().split()[-2]} Post is skipped cause there is no text')
                 break
 
             parsed_post['date'] = post_links[-1].get_attribute('aria-label')
@@ -74,9 +84,10 @@ def parsing_loaded_tweets(data, driver):
             
             if parsed_post not in data:
                 data.append(parsed_post)
-                print(f'{time.ctime().split()[-2]} Parsed one post')
+                #print(f'{time.ctime().split()[-2]} Parsed one post')
         else:
-            print(f"{time.ctime().split()[-2]} It's not {parsed_user} post, continue parsing")
+            pass
+            #print(f"{time.ctime().split()[-2]} It's not {parsed_user} post, continue parsing")
 
 
 def parsing_dynamic_page(data, driver, tweets_number):
@@ -129,7 +140,7 @@ if __name__ == "__main__":
         
         logging(driver, login_url, LOGIN, USERNAME, PASSWORD)
         switch_window(driver, user_url)
-        check_profile(driver)
+        check_connection(driver, By.CSS_SELECTOR, '[data-testid="tweet"]')
         parsing_dynamic_page(data, driver, tweets_number)
         
         print(f'\n\nTotal posts: {len(data)}\nTotal parsing time: {round(time.perf_counter() - t_start, 3)} sec')
